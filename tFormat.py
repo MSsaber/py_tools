@@ -16,6 +16,9 @@ def hexstr_to_byte(hs):
 def byte_to_hexstr(buf):
     return ''.join(['%02x' % b for b in buf])
 
+def binarystr_to_byte(b):
+    return int(b,2).to_bytes(len(s)//8, byteorder='big')
+
 def hexstr_to_base64(hs, isUrl):
     buf = hexstr_to_byte(hs)
     if isUrl:
@@ -30,21 +33,37 @@ def base64_to_hexstr(b64_str, isUrl):
         buf = base64.b64decode(b64_str)
     return byte_to_hexstr(buf)
 
+def get_format_type(s):
+    if s == 'h':
+        return HEXSTR
+    elif s == 'b':
+        return BINARYSTR
+    elif s == 'b64':
+        return BASE64
+    elif s == 'ub64':
+        return URLB64
+    elif s == 'n':
+        return NONE
+    else:
+        raise Exception('Invalid format type')
+
 def format_data(buf, isFile, sf, tf):
     if isFile:
-        data = open(buf).read()
+        f = open(buf)
+        data = f.read()
+        close(f)
     else:
         data = buf
 
     if sf == NONE:
         s = data
-    elif tf == HEXSTR:
+    elif sf == HEXSTR:
         s = hexstr_to_byte(data)
-    elif tf == BINARYSTR：
-        s = data
-    elif tf == BASE64:
+    elif sf == BINARYSTR:
+        s = binarystr_to_byte(data)
+    elif sf == BASE64:
         s = base64.b64decode(data)
-    elif tf == URLB64:
+    elif sf == URLB64:
         s = base64.urlsafe_b64decode(data)
 
     if tf == NONE:
@@ -61,40 +80,30 @@ def format_data(buf, isFile, sf, tf):
 def format_args():
     import argparse
     parse = argparse.ArgumentParser()
-    parse.add_argument('--buffer', requested = False, help = 'data buffer')
-    parse.add_argument('--file', requested = False, help = 'file anem')
-    parse.add_argument('--sf',requested = True, help = 'source data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
-    parse.add_argument('--tf',requested = True, help = 'target data format : hex[h], binary[b], base64[b64], urlbase64[ub64')
-    parse.add_argument('--out',requested = False, help = 'out file name')
+    parse.add_argument('--buffer', required = False, help = 'data buffer')
+    parse.add_argument('--file', required = False, help = 'file anem')
+    parse.add_argument('--sf',required = True, help = 'source data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    parse.add_argument('--tf',required = True, help = 'target data format : hex[h], binary[b], base64[b64], urlbase64[ub64')
+    parse.add_argument('--out',required = False, help = 'out file name')
+    return parse.parse_args()
 
 def format_func():
     args = format_args()
     if args.buffer:
         source = args.buffer
     else:
-        source = open(args.file).read()
+        f = open(args.file)
+        source = f.read()
+        close(f)
 
-    if args.tf == 'h':
-        flag = HEXSTR
-    elif args.tf == 'b':
-        flag = BINARYSTR
-    elif args.tf == 'b64':
-        flag = BASE64
-    elif args.tf == 'ub64':
-        flag = URLB64
-    elif args.tf == 'n':
-        flag = NONE
+    flag = get_format_type(args.tf)
+    sflag = get_format_type(args.sf)
 
-    if args.sf != 'h' and args.sf != 'b':
-        if args.sf == 'b64':
-            buf = base64.b64decode(source)
-        elif args.sf == 'ub64':
-            buf = base64.urlsafe_b64decode(source)
-        return format_data(buf, False, flag)
+    res = format_data(source, False, sflag, flag)
+    print(res)
+    if args.out:
+        out = open(args.out, 'w')
+        out.write(res)
 
-    if args.sf == 'n':
-        return format_data(source, False, flag)
-    if args.sf == 'h':
-        buf = hexstr_to_byte(source)
-        
-        return format()
+if __name__ == '__main__':
+    format_func()
