@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import hmac
+import sm.sm3 as s3
 
 try:
     from cryptography.hazmat.primitives import hashes
@@ -18,6 +19,8 @@ sha224 = 0x03
 sha256 = 0x04
 sha384 = 0x05
 sha512 = 0x06
+sm3 = 0x07
+none = 0x08
 
 def get_hash_handle(mode):
     if mode ==md5:
@@ -47,6 +50,8 @@ def cal_hash(data, mode):
         m = hashes.SHA384()
     elif mode == sha512:
         m = hashes.SHA512()
+    elif mode == sm3:
+        return s3.sm3_hash(data)
     else:
         raise Exception('no support hash type')
     h = hashes.Hash(m, backend = backend)
