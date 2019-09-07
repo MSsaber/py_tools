@@ -51,7 +51,7 @@ def format_data(buf, isFile, sf, tf):
     if isFile:
         f = open(buf)
         data = f.read()
-        close(f)
+        f.close()
     else:
         data = buf
 
@@ -94,7 +94,7 @@ def format_func():
     else:
         f = open(args.file)
         source = f.read()
-        close(f)
+        f.close()
 
     flag = get_format_type(args.tf)
     sflag = get_format_type(args.sf)
@@ -103,7 +103,10 @@ def format_func():
     print(res)
     if args.out:
         out = open(args.out, 'w')
-        out.write(res)
+        if isinstance(res, str):
+            out.write(res)
+        elif isinstance(res, bytes):
+            out.write(res.decode('utf-8'))
 
 if __name__ == '__main__':
     format_func()

@@ -138,7 +138,7 @@ def hash_func():
 
     fg = get_hash_algorithm(args.ht)
     if m == HV:
-        print(hmac_verify(key, data, sign, fg  ))
+        print(hmac_verify(key, data, sign, fg))
     elif m == HS:
         print(tFormat.format_data(cal_hmac(key,data, fg), False, tFormat.NONE, tFormat.HEXSTR))
     elif m == CH:
