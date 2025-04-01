@@ -9,7 +9,7 @@ def buffer_to_int(buf):
     num = struct.unpack('i', buf)
     return num
 
-def parse_tlv(buf):
+def parse_tlv(buf, flag = '>h'):
     print(buf)
     tlv_data_lens = [2,2,0]
     tlv_data = []
@@ -19,13 +19,13 @@ def parse_tlv(buf):
         for i in range(0,3):
             move = move_length+tlv_data_lens[i]
             if i == 0:
-                (tlv_ele['tag'],) = struct.unpack('H', buf[move_length : move])
+                (tlv_ele['tag'],) = struct.unpack(flag, buf[move_length : move])
                 move_length = move
-                #print(tlv_ele['tag'])
+                print(tlv_ele['tag'])
             elif i == 1:
-                (tlv_ele['len'],) = struct.unpack('H', buf[move_length : move])
+                (tlv_ele['len'],) = struct.unpack(flag, buf[move_length : move])
                 move_length = move
-                #print(tlv_ele['len'])
+                print(tlv_ele['len'])
             elif i == 2:
                 data_size = str(tlv_ele['len'])
                 data_size += 's'
@@ -52,9 +52,13 @@ def tlv_func():
     elif args.file:
         tlv = args.file
         flag = True
+    if args.ed == 'be':
+        ed = '>h'
+    elif args.ed == 'le':
+        ed = '<h'
     fmt = tFormat.get_format_type(args.fmt)
     buf = tFormat.format_data(tlv, flag,  fmt, tFormat.NONE)
-    for ele in parse_tlv(buf):
+    for ele in parse_tlv(buf, ed):
         print(ele)
 
 if __name__ == "__main__":
