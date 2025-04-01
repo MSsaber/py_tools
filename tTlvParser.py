@@ -10,7 +10,7 @@ def buffer_to_int(buf):
     return num
 
 def parse_tlv(buf, flag = '>h'):
-    print(buf)
+    #print(buf)
     tlv_data_lens = [2,2,0]
     tlv_data = []
     move_length = 0
@@ -21,11 +21,11 @@ def parse_tlv(buf, flag = '>h'):
             if i == 0:
                 (tlv_ele['tag'],) = struct.unpack(flag, buf[move_length : move])
                 move_length = move
-                print(tlv_ele['tag'])
+                #print(tlv_ele['tag'])
             elif i == 1:
                 (tlv_ele['len'],) = struct.unpack(flag, buf[move_length : move])
                 move_length = move
-                print(tlv_ele['len'])
+                #rint(tlv_ele['len'])
             elif i == 2:
                 data_size = str(tlv_ele['len'])
                 data_size += 's'
