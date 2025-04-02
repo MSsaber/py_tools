@@ -90,8 +90,7 @@ def sm3_cf(v_i, b_i):
     v_j = [a, b, c, d, e, f, g, h]
     return [v_j[i] ^ v_i[i] for i in range(8)]
 
-def sm3_hash(msg):
-    # print(msg)
+def sm3_hash(msg : list):
     len1 = len(msg)
     reserve1 = len1 % 64
     msg.append(0x80)
@@ -127,6 +126,8 @@ def sm3_hash(msg):
     result = ""
     for i in y:
         result = '%s%08x' % (result, i)
+    # print hex string
+    #print("sm3 result: " + result)
     return result
 
 def sm3_kdf(z, klen):
