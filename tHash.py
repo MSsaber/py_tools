@@ -70,9 +70,9 @@ def cal_hmac(key, data, mode):
     elif mode == sha256:
         hm = 'SHA256'
     elif mode == sha384:
-        fm = 'SHA384'
+        hm = 'SHA384'
     elif mode == sha512:
-        fm = 'SHA512'
+        hm = 'SHA512'
     return hmac.new(key, data, hm).digest()
 
 def hmac_verify(key, data, sign, mode):
@@ -95,9 +95,7 @@ def get_hash_algorithm(s):
     else:
         raise Exception('Invalid hash algorithm')
 
-def hash_args():
-    import argparse
-    parser = argparse.ArgumentParser()
+def hash_args(parser):
     parser.add_argument('--bk', required = False, help = 'Hmac key Buffer')
     parser.add_argument('--fk', required = False, help = 'Hmac key File')
     parser.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512')
@@ -105,16 +103,15 @@ def hash_args():
     parser.add_argument('--fd', required = False, help = 'Hash file  data' )
     parser.add_argument('--bs', required = False, help = 'Sign buffer data' )
     parser.add_argument('--fs', required = False, help = 'Sign file data' )
-    parser.add_argument('--fmt', required = False, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64] ')
-    return parser.parse_args()
+    parser.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64] ')
+    return parser
 
 HV = 0x10 #hmac verify
 HS = 0x11 #hmac signature
 CH = 0x12 #cal hash
 
-def hash_func():
+def hash_func(args):
     import tFormat
-    args = hash_args()
     if args.bs or args.fs:
         m = HV
     elif args.bk or args.fk:
@@ -148,4 +145,6 @@ def hash_func():
         raise Exception('Invalid hash method')
 
 if __name__ == "__main__":
-    hash_func()
+    parser = argparse.ArgumentParser()
+    args = hash_args(parser).parse_args()
+    hash_func(args)

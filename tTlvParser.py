@@ -4,6 +4,7 @@
 import struct
 import binascii
 import tFormat
+import argparse
 
 def buffer_to_int(buf):
     num = struct.unpack('i', buf)
@@ -35,17 +36,14 @@ def parse_tlv(buf, flag = '>h'):
                 tlv_data.append(tlv_ele)
     return tlv_data
 
-def tlv_args():
-    import argparse
-    parser = argparse.ArgumentParser()
+def tlv_args(parser):
     parser.add_argument('--buffer', required = False, help = 'buffer data')
     parser.add_argument('--file', required = False, help = 'file data')
     parser.add_argument('--fmt', required = True,  help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
     parser.add_argument('--ed', required = False, help = 'Endian : BigEndian[be] , LittleEndian[le]')
-    return  parser.parse_args()
+    return  parser
 
-def tlv_func():
-    args = tlv_args()
+def tlv_func(args):
     if args.buffer:
         tlv = args.buffer
         flag = False
@@ -62,4 +60,6 @@ def tlv_func():
         print(ele)
 
 if __name__ == "__main__":
-    tlv_func()
+    parser = argparse.ArgumentParser()
+    args = tlv_args(parser).parse_args()
+    tlv_func(args)

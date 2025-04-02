@@ -64,7 +64,7 @@ def get_pk_from_x509(cert_data, isPem, pkFmt):
         flag = serialization.Encoding.PEM
     elif pkFmt == DER:
         flag = serialization.Encoding.DER
- 
+
     pk['key'] = crt.public_key().public_bytes(flag, serialization.PublicFormat.SubjectPublicKeyInfo)
     pk['length'] = crt.public_key().key_size
     return pk

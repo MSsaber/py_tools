@@ -3,6 +3,7 @@
 
 import base64
 import binascii
+import argparse
 
 NONE = 0x00
 HEXSTR = 0x01
@@ -77,18 +78,15 @@ def format_data(buf, isFile, sf, tf):
     elif tf == URLB64:
         return base64.urlsafe_b64encode(s)
 
-def format_args():
-    import argparse
-    parse = argparse.ArgumentParser()
+def format_args(parse):
     parse.add_argument('--buffer', required = False, help = 'data buffer')
     parse.add_argument('--file', required = False, help = 'file anem')
     parse.add_argument('--sf',required = True, help = 'source data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
     parse.add_argument('--tf',required = True, help = 'target data format : hex[h], binary[b], base64[b64], urlbase64[ub64')
     parse.add_argument('--out',required = False, help = 'out file name')
-    return parse.parse_args()
+    return parse
 
-def format_func():
-    args = format_args()
+def format_func(args):
     if args.buffer:
         source = args.buffer
     else:
@@ -100,7 +98,7 @@ def format_func():
     sflag = get_format_type(args.sf)
 
     res = format_data(source, False, sflag, flag)
-    print(res)
+    print(res.decode('utf-8') if isinstance(res, bytes) else res)
     if args.out:
         out = open(args.out, 'w')
         if isinstance(res, str):
@@ -109,4 +107,6 @@ def format_func():
             out.write(res.decode('utf-8'))
 
 if __name__ == '__main__':
-    format_func()
+    parse = argparse.ArgumentParser()
+    args = format_args(parse).parse_args()
+    format_func(args)
