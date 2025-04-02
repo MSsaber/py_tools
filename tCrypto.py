@@ -10,7 +10,7 @@ except Exception as e:
     import os
     print(e)
     print('Download cryptograpk')
-    os.system('pip install cryptography')
+    os.system('python -m pip install cryptography')
 
 try:
     import tFormat

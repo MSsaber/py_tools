@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import hmac
+import argparse
 import sm.sm3 as s3
 
 try:
@@ -11,7 +12,7 @@ except Exception as e:
     import os
     print(e)
     print('Download cryptograpk')
-    os.system('pip install cryptography')
+    os.system('python -m pip install cryptography')
 
 md5 = 0x01
 sha1 = 0x02
