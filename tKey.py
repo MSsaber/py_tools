@@ -11,7 +11,7 @@ except Exception as e:
     import os
     print(e)
     print('Download cryptograpk')
-    os.system('pip install cryptography')
+    os.system('python -m pip install cryptography')
 
 import os
 import tFormat
@@ -49,7 +49,6 @@ def generate_ec_prikey(curve):
                                   encryption_algorithm=serialization.BestAvailableEncryption(b'mypassword'))
     except Exception as e:
         raise e
-    quit()
 
 def generate_sm2_prikey():
     return generate_ec_prikey(ec.SECP256R1)

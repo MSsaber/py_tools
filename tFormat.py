@@ -78,9 +78,9 @@ def format_data(buf, isFile, sf, tf):
     elif tf == URLB64:
         return base64.urlsafe_b64encode(s)
 
-def format_args(parse):
+def format_args(parse : argparse.ArgumentParser):
     parse.add_argument('--buffer', required = False, help = 'data buffer')
-    parse.add_argument('--file', required = False, help = 'file anem')
+    parse.add_argument('--file', required = False, help = 'file name')
     parse.add_argument('--sf',required = True, help = 'source data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
     parse.add_argument('--tf',required = True, help = 'target data format : hex[h], binary[b], base64[b64], urlbase64[ub64')
     parse.add_argument('--out',required = False, help = 'out file name')

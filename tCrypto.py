@@ -1,5 +1,6 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
+import argparse
 
 try:
     from cryptography.hazmat.primitives.asymmetric import rsa, padding, ec, utils
@@ -22,36 +23,45 @@ except Exception as e:
 
 PEM = 0x01
 DER = 0x02
+NONE = 0x03
 
 RSA = 0x01
 ECC = 0x02
 SM2 = 0x03
 
+OP_SIGN = "sign"
+OP_VERIFY = "verify"
+OP_PARSE_CERT = "parse"
+
 def parse_x509(cert_data, isPem):
-    if isPem:
-        cert = cert_data.encode('ascii')
-        crt = x509.load_pem_x509_certificate(data = cert, backend = default_backend())
-    else:
-        crt = x509.load_der_x509_certificate(cert_data, default_backend())
-    print('')
-    print('证书版本 : ' + str(crt.version))
-    print('证书序列号 : ' + str(crt.serial))
-    print('证书颁发时间 : ' + str(crt.not_valid_before))
-    print('证书截止时间 : ' + str(crt.not_valid_after))
-    print('证书签名的hash类型 : ' + str(crt.signature_hash_algorithm.name))
-    print('证书签名算法类型oid : ' + str(crt.serial_number))
-    print('证书子项 : ')
-    for sub in crt.subject.rdns:
-        print('\t' + str(sub))
-    print('证书签名 : ' + tFormat.byte_to_hexstr(crt.signature))
-    print('公钥 : ' + str(crt.public_key().public_bytes(serialization.Encoding.PEM,
-                                                        serialization.PublicFormat.SubjectPublicKeyInfo)))
-    print('指纹 : ' + tFormat.byte_to_hexstr(crt.fingerprint(hashes.SHA256())))
-    print('证书扩展项 : ' + str(crt.extensions))
-    print('证书发行方 : ')
-    for sub in crt.issuer.rdns:
-        print('\t' + str(sub))
-    #crt.tbs_certificate_bytes
+    try:
+        if isPem:
+            cert = cert_data.encode('ascii')
+            crt = x509.load_pem_x509_certificate(data = cert, backend = default_backend())
+        else:
+            crt = x509.load_der_x509_certificate(cert_data, default_backend())
+        print('')
+        print('证书版本 : ' + str(crt.version))
+        print('证书序列号 : ' + str(crt.serial_number))
+        print('证书颁发时间 : ' + str(crt.not_valid_before_utc))
+        print('证书截止时间 : ' + str(crt.not_valid_after_utc))
+        print('证书签名的hash类型 : ' + str(crt.signature_hash_algorithm.name))
+        print('证书签名算法类型oid : ' + str(crt.signature_algorithm_oid))
+        print('证书子项 : ')
+        for sub in crt.subject.rdns:
+            print('\t' + str(sub))
+        print('证书签名 : ' + tFormat.byte_to_hexstr(crt.signature))
+        print('公钥 : ' + str(crt.public_key().public_bytes(serialization.Encoding.PEM,
+                                                            serialization.PublicFormat.SubjectPublicKeyInfo)))
+        print('指纹 : ' + tFormat.byte_to_hexstr(crt.fingerprint(hashes.SHA256())))
+        print('证书扩展项 : ' + str(crt.extensions))
+        print('证书发行方 : ')
+        for sub in crt.issuer.rdns:
+            print('\t' + str(sub))
+        print("证书链  : " + str(crt.tbs_certificate_bytes))
+        print("证书链[前] : " + str(crt.tbs_precertificate_bytes))
+    except Exception as e:
+        print(e)
 
 def get_pk_from_x509(cert_data, isPem, pkFmt):
     if isPem:
@@ -82,23 +92,34 @@ def verify_by_rsa(key, data, sign, mode, isPem):
     except Exception as e:
         print('verify failed')
 
-def sign_by_rsa(key, data, mode):
-    prik = serialization.load_pem_private_key(key, password=None, backend = default_backend())
+def sign_by_rsa(key, data, mode, isPem):
+    if isPem:
+        prik = serialization.load_pem_private_key(key, password=None, backend = default_backend())
+    else:
+        prik = serialization.load_der_private_key(key, password=None, backend = default_backend())
     return prik.sign(data, padding.PKCS1v15(), tHash.get_hash_handle(mode))
 
-def verify_by_ecdsa(key, data, sign, mode):
-    pk = serialization.load_pem_public_key(key, backend = default_backend())
+def verify_by_ecdsa(key, data, sign, mode, isPem):
+    if isPem:
+        pk = serialization.load_pem_public_key(key, backend = default_backend())
+    else:
+        pk = serialization.load_der_public_key(key, backend = default_backend())
     try:
         pk.verify(sign, data, ec.ECDSA(tHash.get_hash_handle(mode)))
         print('verify success')
     except Exception as e:
         print('verify failed')
 
-def sign_by_ecdsa(key, data, mode):
-    prik = serialization.load_pem_private_key(key, password = None, backend = default_backend())
+def sign_by_ecdsa(key, data, mode, isPem):
+    if isPem:
+        prik = serialization.load_pem_private_key(key, password = None, backend = default_backend())
+    else:
+        prik = serialization.load_der_private_key(key, password = None, backend = default_backend())
     return prik.sign(data, ec.ECDSA(tHash.get_hash_handle(mode)))
 
 def verify_by_sm2(key, data, sign, mode):
+    if mode != tHash.sm3:
+        print("sm2 just support sm3")
     verifier = s2.CryptSM2(private_key = None, public_key = key)
     if verifier.verify(sign, tHash.cal_hash(data, tHash.sm3)):
         print('verify success')
@@ -106,34 +127,157 @@ def verify_by_sm2(key, data, sign, mode):
         print('verify failed')
 
 def sign_by_sm2(key, data, mode):
-    import random
+    if mode != tHash.sm3:
+        print("sm2 just support sm3")
     sign = s2.CryptSM2(private_key = key, public_key = None)
     k = func.random_hex(sign.para_len)
     return sign.sign(tHash.cal_hash(data, tHash.sm3), k)
 
-def crypto_args():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--alg', required = False, help = 'Algorithm : rsa, ec, sm2')
-    parser.add_argument('--fk', required = False, help = "key file")
-    parser.add_argument('--bk', required = False, help = "key buffer")
-    parser.add_argument('--fc', required = False, help = "cert file")
-    parser.add_argument('--bc', required = False, help = "cert buffer")
-    parser.add_argument('--sign', required = False, help = 'sign data')
-    parser.add_argument('--data', required = False, help = 'src data')
-    return parser.parse_args()
+def build_pem_key(key : bytes, fmt, isPri : bool):
+    data = tFormat.format_data(key, False, fmt, tFormat.BASE64).decode('utf-8')
+    if isPri:
+        return ('-----BEGIN ENCRYPTED PRIVATE KEY-----\n' + data + '\n-----END ENCRYPTED PRIVATE KEY-----').encode()
+    else:
+        if int(len(key)) % 2 == 0:
+            key = bytearray(b'\x04') + bytearray(key)
+            key = bytes(key)
+        # 分解 X 和 Y 坐标
+        prefix = key[0]
+        if prefix != 0x04:
+            raise ValueError("非压缩公钥应以 0x04 开头")
 
-def crypto_func():
-    args = crypto_args()
-    cert = tFormat.format_data(args.fc, True, tFormat.NONE, tFormat.NONE)
-    data = tFormat.format_data(args.data, False, tFormat.BASE64, tFormat.NONE)
-    sign = tFormat.format_data(args.sign, False, tFormat.BASE64, tFormat.NONE)
-    pk = get_pk_from_x509(cert, True, PEM)
-    verify_by_rsa(pk['key'],
-                  tFormat.format_data(args.data, False, tFormat.BASE64, tFormat.NONE),
-                  tFormat.format_data(args.sign, False, tFormat.BASE64, tFormat.NONE),
-                  tHash.sha256, True)
-    parse_x509(cert, True)
+        x_bytes = key[1:int((len(key)-1)/2 + 1)]
+        y_bytes = key[int((len(key)-1)/2 + 1):int(len(key))]
+        x = int.from_bytes(x_bytes, "big")
+        y = int.from_bytes(y_bytes, "big")
+
+        # 创建公钥对象
+        curve = ec.SECP256R1()
+        public_numbers = ec.EllipticCurvePublicNumbers(x, y, curve)
+        public_key = public_numbers.public_key()
+
+        # 序列化为 PEM 格式
+        pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        return pem
+
+def crypto_args(parser : argparse.ArgumentParser):
+    subparsers = parser.add_subparsers(dest="operation", required=True, help = 'Operation : sign, verify, parse')
+    #parse cert
+    parser_cert = subparsers.add_parser('parse', help = 'parse cert')
+    parser_cert.add_argument('--fc', required = False, help = "cert file")
+    parser_cert.add_argument('--bc', required = False, help = "cert buffer")
+    parser_cert.add_argument('--cf', required = True, help = 'cert format : PEM, DER')
+    #verify
+    parser_verify = subparsers.add_parser('verify', help = 'verify data by key or cert')
+    parser_verify.add_argument('--alg', required = True, help = 'Algorithm : rsa, ec, sm2')
+    parser_verify.add_argument('--kf', required = True, help = 'key format : PEM, DER, hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    parser_verify.add_argument('--fk', required = False, help = "key file")
+    parser_verify.add_argument('--bk', required = False, help = "key buffer")
+    parser_verify.add_argument('--cf', required = False, help = 'cert format : PEM, DER')
+    parser_verify.add_argument('--fc', required = False, help = "cert file")
+    parser_verify.add_argument('--bc', required = False, help = "cert buffer")
+    parser_verify.add_argument('--sign', required = True, help = 'sign data')
+    parser_verify.add_argument('--data', required = True, help = 'src data')
+    parser_verify.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SM3')
+    parser_verify.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    #signature
+    parser_sign = subparsers.add_parser('sign', help = 'signature data by key')
+    parser_sign.add_argument('--alg', required = True, help = 'Algorithm : rsa, ec, sm2')
+    parser_sign.add_argument('--kf', required = True, help = 'key format : PEM, DER, HEXSTR[h], BASE64[b64], BINARY[b]')
+    parser_sign.add_argument('--fk', required = False, help = "key file")
+    parser_sign.add_argument('--bk', required = False, help = "key buffer")
+    parser_sign.add_argument('--data', required = True, help = 'src data')
+    parser_sign.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SM3')
+    parser_sign.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    return parser
+
+def crypto_func(args):
+    def std_key_data(args):
+        fmt = tFormat.get_format_type(args.fmt)
+        if args.fk:
+            key_data = tFormat.format_data(args.fk, True, fmt, tFormat.NONE)
+        elif args.bk:
+            key_data = tFormat.format_data(args.bk, False, fmt, tFormat.NONE)
+        return key_data
+    def crypto_parse(args):
+        if args.fc:
+            cert = tFormat.format_data(args.fc, True, tFormat.NONE, tFormat.NONE)
+        elif args.bc:
+            cert = tFormat.format_data(args.bc, False, tFormat.NONE, tFormat.NONE)
+        if args.cf == "PEM":
+            is_pem = True
+        elif args.cf == "DER":
+            is_pem = False
+        if cert is None:
+            raise Exception("No cert input")
+        parse_x509(cert, is_pem)
+    def crypto_sign(args):
+        key=None
+        is_pem = True
+        fmt = tFormat.get_format_type(args.fmt)
+        hash_mode = tHash.get_hash_algorithm(args.ht)
+        data = tFormat.format_data(args.data, False, fmt, tFormat.NONE)
+        if args.kf == 'PEM' or args.kf == 'DER':
+            if args.kf == 'PEM':
+                is_pem = True
+            elif args.kf == 'DER':
+                is_pem = False
+            key = std_key_data(args)
+        else:
+            is_pem = True
+            key = build_pem_key(std_key_data(args), tFormat.get_format_type(args.kf), True)
+        if args.alg == 'rsa':
+            sign_by_rsa(key, data, hash_mode, is_pem)
+        elif args.alg == 'ec':
+            sign_by_ecdsa(key, data, hash_mode, is_pem)
+        elif args.alg == 'sm2':
+            pass
+    def crypto_verify(args):
+        cert=None
+        key=None
+        is_pem = True
+        fmt = tFormat.get_format_type(args.fmt)
+        hash_mode = tHash.get_hash_algorithm(args.ht)
+        sign = tFormat.format_data(args.sign, False, fmt, tFormat.NONE)
+        data = tFormat.format_data(args.data, False, fmt, tFormat.NONE)
+        if args.fc:
+            cert = tFormat.format_data(args.fc, True, fmt, tFormat.NONE)
+        elif args.bc:
+            cert = tFormat.format_data(args.bc, False, fmt, tFormat.NONE)
+        if cert is not None:
+            if args.kf != "PEM" and args.kf != "DER":
+                raise Exception("cert format just support PEM or DER")
+            key = get_pk_from_x509(cert, True if args.cf == 'PEM'  else False, PEM if args.kf == 'PEM' else DER)
+        else:
+            if args.kf == 'PEM':
+                is_pem = True
+                key_data = std_key_data(args)
+            elif args.kf == 'DER':
+                is_pem = False
+                key_data = std_key_data(args)
+            else:
+                is_pem = True
+                key_data = std_key_data(args)
+                key_data = build_pem_key(key_data, tFormat.get_format_type('n'), False)
+            key = key_data
+        if args.alg == 'rsa':
+            verify_by_rsa(key, data, sign, hash_mode, is_pem)
+        elif args.alg == 'ec':
+            verify_by_ecdsa(key, data, sign, hash_mode, is_pem)
+        elif args.alg == 'sm2':
+            pass
+
+    if args.operation == 'sign':
+        crypto_sign(args)
+    elif args.operation == 'verify':
+        crypto_verify(args)
+    elif args.operation == 'parse':
+        crypto_parse(args)
 
 if __name__ == "__main__":
-    crypto_func()
+    parser = argparse.ArgumentParser()
+    args = crypto_args(parser).parse_args()
+    crypto_func(args)

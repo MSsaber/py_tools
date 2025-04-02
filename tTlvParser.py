@@ -10,9 +10,9 @@ def buffer_to_int(buf):
     num = struct.unpack('i', buf)
     return num
 
-def parse_tlv(buf, flag = '>h'):
+def parse_tlv(buf, flag = '>h', lens = [2, 2, 0]):
     #print(buf)
-    tlv_data_lens = [2,2,0]
+    tlv_data_lens = lens
     tlv_data = []
     move_length = 0
     while move_length < len(buf):
@@ -36,11 +36,12 @@ def parse_tlv(buf, flag = '>h'):
                 tlv_data.append(tlv_ele)
     return tlv_data
 
-def tlv_args(parser):
+def tlv_args(parser : argparse.ArgumentParser):
     parser.add_argument('--buffer', required = False, help = 'buffer data')
     parser.add_argument('--file', required = False, help = 'file data')
     parser.add_argument('--fmt', required = True,  help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
-    parser.add_argument('--ed', required = False, help = 'Endian : BigEndian[be] , LittleEndian[le]')
+    parser.add_argument('--ed', required = True, help = 'Endian : BigEndian[be] , LittleEndian[le]')
+    parser.add_argument('--tl', required = False, help = 'tlv tag/len length : 1[1], 2[2], 4[4]')
     return  parser
 
 def tlv_func(args):
@@ -54,9 +55,12 @@ def tlv_func(args):
         ed = '>h'
     elif args.ed == 'le':
         ed = '<h'
+    lens = [2, 2, 0]
+    if args.tl:
+        lens = [int(args.tl),int(args.tl),0]
     fmt = tFormat.get_format_type(args.fmt)
     buf = tFormat.format_data(tlv, flag,  fmt, tFormat.NONE)
-    for ele in parse_tlv(buf, ed):
+    for ele in parse_tlv(buf, ed, lens):
         print(ele)
 
 if __name__ == "__main__":

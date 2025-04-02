@@ -4,6 +4,7 @@
 import hmac
 import argparse
 import sm.sm3 as s3
+from sm.func import bytes_to_list
 
 try:
     from cryptography.hazmat.primitives import hashes
@@ -52,7 +53,9 @@ def cal_hash(data, mode):
     elif mode == sha512:
         m = hashes.SHA512()
     elif mode == sm3:
-        return s3.sm3_hash(data)
+        m = hashes.SM3()
+        #msg = bytes_to_list(data)
+        #print(bytes.fromhex(s3.sm3_hash(msg)))
     else:
         raise Exception('no support hash type')
     h = hashes.Hash(m, backend = backend)
@@ -92,18 +95,37 @@ def get_hash_algorithm(s):
         return sha384
     elif s == 'SHA512':
         return sha512
+    elif s == 'SM3':
+        return sm3
     else:
         raise Exception('Invalid hash algorithm')
 
-def hash_args(parser):
-    parser.add_argument('--bk', required = False, help = 'Hmac key Buffer')
-    parser.add_argument('--fk', required = False, help = 'Hmac key File')
-    parser.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512')
-    parser.add_argument('--bd', required = False, help = 'Hash buffer  data' )
-    parser.add_argument('--fd', required = False, help = 'Hash file  data' )
-    parser.add_argument('--bs', required = False, help = 'Sign buffer data' )
-    parser.add_argument('--fs', required = False, help = 'Sign file data' )
-    parser.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64] ')
+def hash_args(parser : argparse.ArgumentParser):
+    subparsers = parser.add_subparsers(dest="operation", required=True, help="hash operation")
+    #signature
+    parser_sign = subparsers.add_parser("sign", help="hmac signature")
+    parser_sign.add_argument('--bk', required = False, help = 'Hmac key Buffer')
+    parser_sign.add_argument('--fk', required = False, help = 'Hmac key File')
+    parser_sign.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SM3')
+    parser_sign.add_argument('--bd', required = False, help = 'Hash buffer  data' )
+    parser_sign.add_argument('--fd', required = False, help = 'Hash file  data' )
+    parser_sign.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    #verify
+    parser_verify = subparsers.add_parser("verify", help="hmac verify")
+    parser_verify.add_argument('--bk', required = False, help = 'Hmac key Buffer')
+    parser_verify.add_argument('--fk', required = False, help = 'Hmac key File')
+    parser_verify.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SM3')
+    parser_verify.add_argument('--bd', required = False, help = 'Hash buffer  data' )
+    parser_verify.add_argument('--fd', required = False, help = 'Hash file  data' )
+    parser_verify.add_argument('--bs', required = False, help = 'Sign buffer data' )
+    parser_verify.add_argument('--fs', required = False, help = 'Sign file data' )
+    parser_verify.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
+    #cal hash
+    parser_cal = subparsers.add_parser("cal", help="cal hash")
+    parser_cal.add_argument('--ht', required = True, help = 'Hash Algorithm : MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SM3')
+    parser_cal.add_argument('--bd', required = False, help = 'Hash buffer  data' )
+    parser_cal.add_argument('--fd', required = False, help = 'Hash file  data' )
+    parser_cal.add_argument('--fmt', required = True, help = 'Data format : hex[h], binary[b], base64[b64], urlbase64[ub64]')
     return parser
 
 HV = 0x10 #hmac verify
@@ -111,38 +133,63 @@ HS = 0x11 #hmac signature
 CH = 0x12 #cal hash
 
 def hash_func(args):
-    import tFormat
-    if args.bs or args.fs:
-        m = HV
-    elif args.bk or args.fk:
-        m = HS
-    else:
-        m =CH
-    fmt = tFormat.get_format_type(args.fmt)
-    if args.bk:
-        key = tFormat.format_data(args.bk, False, fmt,  tFormat.NONE)
-    elif args.fk:
-        key = tFormat.format_data(args.fk, True, fmt, tFormat.NONE)
+    def hash_op_cal(args):
+        fmt = tFormat.get_format_type(args.fmt)
 
-    if args.bd:
-        data = tFormat.format_data(args.bd, False,fmt,  tFormat.NONE)
-    elif args.fd:
-        data = tFormat.format_data(args.fd, True, fmt, tFormat.NONE)
+        if args.bd:
+            data = tFormat.format_data(args.bd, False,fmt,  tFormat.NONE)
+        elif args.fd:
+            data = tFormat.format_data(args.fd, True, fmt, tFormat.NONE)
 
-    if args.bs:
-        sign = tFormat.format_data(args.bs, False,fmt,  tFormat.NONE)
-    elif args.fs:
-        sign = tFormat.format_data(args.fs, True, fmt, tFormat.NONE)
-
-    fg = get_hash_algorithm(args.ht)
-    if m == HV:
-        print(hmac_verify(key, data, sign, fg))
-    elif m == HS:
-        print(tFormat.format_data(cal_hmac(key,data, fg), False, tFormat.NONE, tFormat.HEXSTR))
-    elif m == CH:
+        fg = get_hash_algorithm(args.ht)
         print(tFormat.format_data(cal_hash(data, fg), False, tFormat.NONE, tFormat.HEXSTR))
+    def hash_op_sign(args):
+        fmt = tFormat.get_format_type(args.fmt)
+        if args.bk:
+            key = tFormat.format_data(args.bk, False, fmt,  tFormat.NONE)
+        elif args.fk:
+            key = tFormat.format_data(args.fk, True, fmt, tFormat.NONE)
+
+        if args.bd:
+            data = tFormat.format_data(args.bd, False,fmt,  tFormat.NONE)
+        elif args.fd:
+            data = tFormat.format_data(args.fd, True, fmt, tFormat.NONE)
+
+        if args.bs:
+            sign = tFormat.format_data(args.bs, False,fmt,  tFormat.NONE)
+        elif args.fs:
+            sign = tFormat.format_data(args.fs, True, fmt, tFormat.NONE)
+
+        fg = get_hash_algorithm(args.ht)
+        print(tFormat.format_data(cal_hmac(key,data, fg), False, tFormat.NONE, tFormat.HEXSTR))
+    def hash_op_verify(args):
+        fmt = tFormat.get_format_type(args.fmt)
+        if args.bk:
+            key = tFormat.format_data(args.bk, False, fmt,  tFormat.NONE)
+        elif args.fk:
+            key = tFormat.format_data(args.fk, True, fmt, tFormat.NONE)
+
+        if args.bd:
+            data = tFormat.format_data(args.bd, False,fmt,  tFormat.NONE)
+        elif args.fd:
+            data = tFormat.format_data(args.fd, True, fmt, tFormat.NONE)
+
+        if args.bs:
+            sign = tFormat.format_data(args.bs, False,fmt,  tFormat.NONE)
+        elif args.fs:
+            sign = tFormat.format_data(args.fs, True, fmt, tFormat.NONE)
+
+        fg = get_hash_algorithm(args.ht)
+        print("verify : " + str(hmac_verify(key, data, sign, fg)))
+    import tFormat
+    if args.operation == 'verify':
+        hash_op_verify(args)
+    elif args.operation == 'sign':
+        hash_op_sign(args)
+    elif args.operation == 'cal':
+        hash_op_cal(args)
     else:
-        raise Exception('Invalid hash method')
+        raise Exception('Invalid hash operation')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
