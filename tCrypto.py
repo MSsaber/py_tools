@@ -33,6 +33,34 @@ OP_SIGN = "sign"
 OP_VERIFY = "verify"
 OP_PARSE_CERT = "parse"
 
+_KEY_TYPES: dict[str, str] = {
+    "prime192v1": "prime192v1",
+    "prime192v1": "prime192v1",
+    "secp192r1": "secp192r1",
+    "secp224r1": "secp224r1",
+    "secp256r1": "secp256r1",
+    "secp384r1": "secp384r1",
+    "secp521r1": "secp521r1",
+    "secp256k1": "secp256k1",
+    "sect163k1": "sect163k1",
+    "sect233k1": "sect233k1",
+    "sect283k1": "sect283k1",
+    "sect409k1": "sect409k1",
+    "sect571k1": "sect571k1",
+    "sect163r2": "sect163r2",
+    "sect233r1": "sect233r1",
+    "sect283r1": "sect283r1",
+    "sect409r1": "sect409r1",
+    "sect571r1": "sect571r1",
+    "brainpoolP256r1": "brainpoolP256r1",
+    "brainpoolP384r1": "brainpoolP384r1",
+    "brainpoolP512r1": "brainpoolP512r1",
+    "rsa-1024": "1024",
+    "rsa-2048": "2048",
+    "rsa-3072": "3072",
+    "rsa-4096": "4096",
+}
+
 def parse_x509(cert_data, isPem):
     try:
         if isPem:
@@ -151,7 +179,7 @@ def build_dss_signature(data):
 
     return utils.encode_dss_signature(r, s)
 
-def build_pem_key(key : bytes, fmt, isPri : bool):
+def build_pem_key(key_type : str, key : bytes, fmt, isPri : bool):
     data = tFormat.format_data(key, False, fmt, tFormat.BASE64).decode('utf-8')
     if isPri:
         return ('-----BEGIN ENCRYPTED PRIVATE KEY-----\n' + data + '\n-----END ENCRYPTED PRIVATE KEY-----').encode()
@@ -171,7 +199,7 @@ def build_pem_key(key : bytes, fmt, isPri : bool):
         print("x : " + str(x))
         print("y : " + str(y))
 
-        curve = ec.SECP256R1()
+        curve = ec._CURVE_TYPES[key_type]
         public_numbers = ec.EllipticCurvePublicNumbers(x, y, curve)
         public_key = public_numbers.public_key()
 
@@ -192,6 +220,7 @@ def crypto_args(parser : argparse.ArgumentParser):
     #verify
     parser_verify = subparsers.add_parser('verify', help = 'verify data by key or cert')
     parser_verify.add_argument('--alg', required = True, help = 'Algorithm : rsa, ec, sm2')
+    parser_verify.add_argument('--kt', required=True, help='key type : ' + str(_KEY_TYPES.keys()))
     parser_verify.add_argument('--kf', required = True, help = 'key format : PEM, DER, hex[h], binary[b], base64[b64], urlbase64[ub64]')
     parser_verify.add_argument('--fk', required = False, help = "key file")
     parser_verify.add_argument('--bk', required = False, help = "key buffer")
@@ -205,6 +234,7 @@ def crypto_args(parser : argparse.ArgumentParser):
     #signature
     parser_sign = subparsers.add_parser('sign', help = 'signature data by key')
     parser_sign.add_argument('--alg', required = True, help = 'Algorithm : rsa, ec, sm2')
+    parser_sign.add_argument('--kt', required=True, help='key type : ' + str(_KEY_TYPES.keys()))
     parser_sign.add_argument('--kf', required = True, help = 'key format : PEM, DER, HEXSTR[h], BASE64[b64], BINARY[b]')
     parser_sign.add_argument('--fk', required = False, help = "key file")
     parser_sign.add_argument('--bk', required = False, help = "key buffer")
@@ -280,7 +310,7 @@ def crypto_func(args):
             else:
                 is_pem = True
                 key_data = std_key_data(args)
-                key_data = build_pem_key(key_data, tFormat.get_format_type('n'), False)
+                key_data = build_pem_key(args.kt, key_data, tFormat.get_format_type('n'), False)
             key = key_data
         if args.alg == 'rsa':
             verify_by_rsa(key, data, sign, hash_mode, is_pem)
