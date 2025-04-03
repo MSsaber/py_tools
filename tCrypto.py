@@ -105,7 +105,13 @@ def verify_by_ecdsa(key, data, sign, mode, isPem):
     else:
         pk = serialization.load_der_public_key(key, backend = default_backend())
     try:
-        pk.verify(sign, data, ec.ECDSA(tHash.get_hash_handle(mode)))
+        print(tFormat.byte_to_hexstr(pk.public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint
+        )))
+        print("sign :" + tFormat.byte_to_hexstr(sign))
+        print("data :" + tFormat.byte_to_hexstr(data))
+        pk.verify(build_dss_signature(sign), data, ec.ECDSA(tHash.get_hash_handle(mode)))
         print('verify success')
     except Exception as e:
         print('verify failed')
@@ -133,6 +139,18 @@ def sign_by_sm2(key, data, mode):
     k = func.random_hex(sign.para_len)
     return sign.sign(tHash.cal_hash(data, tHash.sm3), k)
 
+def build_dss_signature(data):
+    if int(len(data)) % 2 != 0:
+        raise ValueError("Invalid signature length")
+
+    r_bytes = data[0:int(len(data)/2)]
+    s_bytes = data[int(len(data)/2):int(len(data))]
+
+    r = int.from_bytes(r_bytes, "big")
+    s = int.from_bytes(s_bytes, "big")
+
+    return utils.encode_dss_signature(r, s)
+
 def build_pem_key(key : bytes, fmt, isPri : bool):
     data = tFormat.format_data(key, False, fmt, tFormat.BASE64).decode('utf-8')
     if isPri:
@@ -150,17 +168,18 @@ def build_pem_key(key : bytes, fmt, isPri : bool):
         y_bytes = key[int((len(key)-1)/2 + 1):int(len(key))]
         x = int.from_bytes(x_bytes, "big")
         y = int.from_bytes(y_bytes, "big")
+        print("x : " + str(x))
+        print("y : " + str(y))
 
-        # 创建公钥对象
         curve = ec.SECP256R1()
         public_numbers = ec.EllipticCurvePublicNumbers(x, y, curve)
         public_key = public_numbers.public_key()
 
-        # 序列化为 PEM 格式
         pem = public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
+
         return pem
 
 def crypto_args(parser : argparse.ArgumentParser):
